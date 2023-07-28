@@ -3,7 +3,7 @@ on:
 jobs:
   setup:
     name: Set Up Environment
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-latest
     steps:
     - name: Setup Node.js environment
       uses: actions/setup-node@v3.7.0
@@ -13,7 +13,7 @@ jobs:
       uses: actions/checkout@v3.5.3
   package:
     name: Package Extension
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-latest
     steps:
     - name: Build extension
       run: sh package.sh
