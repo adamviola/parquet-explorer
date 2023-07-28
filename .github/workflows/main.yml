@@ -14,6 +14,7 @@ jobs:
     - name: Build extension
       run: |
         npm install
+        npm install --global @vscode/vsce
         sh ./package.sh
     - name: Upload extension
       uses: actions/upload-artifact@v3.1.2
