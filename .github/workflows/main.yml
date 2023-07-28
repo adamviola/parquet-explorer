@@ -4,10 +4,6 @@ jobs:
   setup:
     name: Set Up Environment
     runs-on: ubuntu-18.04
-    strategy:
-      matrix:
-        node_version: ['8', '10', '12']
-        os: [ubuntu-latest, windows-latest, macOS-latest]
     steps:
     - name: Setup Node.js environment
       uses: actions/setup-node@v3.7.0
