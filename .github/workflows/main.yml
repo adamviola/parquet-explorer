@@ -1,8 +1,8 @@
 on:
   workflow_dispatch:
 jobs:
-  setup:
-    name: Set Up Environment
+  package:
+    name: Package Extension
     runs-on: ubuntu-latest
     steps:
     - name: Setup Node.js environment
@@ -11,12 +11,8 @@ jobs:
         node-version: 20.3.1
     - name: Checkout repo
       uses: actions/checkout@v3.5.3
-  package:
-    name: Package Extension
-    runs-on: ubuntu-latest
-    steps:
     - name: Build extension
-      run: sh package.sh
+      run: sh ./package.sh
     - name: Upload extension
       uses: actions/upload-artifact@v3.1.2
       with:
