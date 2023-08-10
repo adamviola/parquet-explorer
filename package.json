@@ -3,7 +3,7 @@
 	"displayName": "Parquet Explorer",
 	"description": "Explore Parquet files with SQL. Powered by DuckDB",
 	"version": "1.0.0",
-	"publisher": "Adam Viola",
+	"publisher": "AdamViola",
 	"private": true,
 	"license": "MIT",
 	"repository": {
