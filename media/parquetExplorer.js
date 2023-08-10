@@ -154,7 +154,6 @@ function waitForElements(selectors) {
 		let scroll = this.scrollY;
 
 		const elem = document.getElementById("results");
-		console.log("offset", scrollOffset);
 		if (this.innerHeight + this.scrollY >= elem.offsetTop + elem.offsetHeight && !loadingScroll) {
 			loadingScroll = true;
 			scrollOffset += batchSize;
