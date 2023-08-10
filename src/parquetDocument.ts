@@ -48,17 +48,25 @@ class ParquetDocument extends Disposable implements vscode.CustomDocument {
 	}
 
 	runQuery(sql: string, limit: number, callback: (msg: object) => void): void {
-		this.db.all(
-			`SELECT * FROM (${sql.replace(';', '')}) LIMIT ${limit}`,
-			function(err, res) {
-				if (err) {
-					callback({type: 'query', success: false, message: err.message});
-				}
-				else {
-					callback({type: 'query', success: true, results: res });
-				}
+		const db = this.db
+		db.all(`EXPLAIN\n${sql}`, function(err, res) {
+			if (err) {
+				callback({type: 'query', success: false, message: err.message });
 			}
-		);
+			else {
+				db.all(
+					`SELECT * FROM (\n${sql.replace(';', '')}\n) LIMIT ${limit}`,
+					function(err, res) {
+						if (err) {
+							callback({type: 'query', success: false, message: err.message});
+						}
+						else {
+							callback({type: 'query', success: true, results: res });
+						}
+					}
+				);
+			}
+		});
 	}
 
 	fetchMore(sql: string, limit: number, offset: number, callback: (msg: object) => void): void {

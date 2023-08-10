@@ -1,9 +1,9 @@
 {
 	"name": "parquet-explorer",
 	"displayName": "Parquet Explorer",
-	"description": "Explore Parquet files with SQL.",
-	"version": "0.0.1",
-	"publisher": "adam-viola",
+	"description": "Explore Parquet files with SQL. Powered by DuckDB",
+	"version": "1.0.0",
+	"publisher": "Adam Viola",
 	"private": true,
 	"license": "MIT",
 	"repository": {
@@ -22,7 +22,7 @@
 		"customEditors": [
 			{
 				"viewType": "parquetExplorer.explorer",
-				"displayName": "Parquet",
+				"displayName": "Parquet Explorer",
 				"selector": [
 					{
 						"filenamePattern": "*.parquet"

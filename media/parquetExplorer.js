@@ -183,6 +183,15 @@ function waitForElements(selectors) {
 	);
 
 	// Define text-area event handlers
+	const onKeyDown = (event) => {
+		// Allow Ctrl/Cmd + Enter to send query
+		if ((event.ctrlKey || event.metaKey) && event.code == "Enter") {
+			event.preventDefault();
+			event.stopPropagation();
+			textAreaElement.dispatchEvent(new Event("change"));
+		}
+	}
+
 	let controlsHeight = 0;
 	const onInput = (event) => {
 		const height = document.getElementById("controls").offsetHeight;
@@ -216,7 +225,7 @@ function waitForElements(selectors) {
 		
 	}
 
-	waitForElements(["textarea", "#resultsHeader", "#resultsBody", "#loadingIcon"]).then(([textarea, resultHeader, resultBody, loadingIcon]) => {
+	waitForElements(["textarea", "#resultsHeader", "#resultsBody", "#loadingIcon"]).then(([textarea, resultsHeader, resultsBody, loadingIcon]) => {
 		textAreaElement = textarea;
 		resultsHeaderElement = resultsHeader;
 		resultsBodyElement = resultsBody;
@@ -225,14 +234,13 @@ function waitForElements(selectors) {
 		// Register text-area event handlers
 		textarea.addEventListener("input", onInput);
 		textarea.addEventListener("change", onChange);
+		textarea.addEventListener("keydown", onKeyDown, true);
 
 		// Load state
 		const state = vscode.getState();
-		if (state) {
-			textarea.textContent = state.sql
-			textarea.dispatchEvent(new Event("input"))
-			textarea.dispatchEvent(new Event("change"))
-		}
+		textarea.textContent = state ? state.sql : "SELECT * FROM data;";
+		textarea.dispatchEvent(new Event("input"));
+		textarea.dispatchEvent(new Event("change"));
 	})
 	
 }());
