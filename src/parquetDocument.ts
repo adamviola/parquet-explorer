@@ -1,8 +1,15 @@
 import * as vscode from 'vscode';
-import { Disposable, disposeAll } from './dispose';
+import { Disposable } from './dispose';
 import { getNonce } from './util';
 
 import * as duckdb from 'duckdb';
+
+interface IMessage {
+	type: 'query' | 'more';
+	success: boolean;
+	message?: string;
+	results?: duckdb.TableData;
+}
 
 /**
  * Define the document (the data model) used for paw draw files.
@@ -25,7 +32,7 @@ class ParquetDocument extends Disposable implements vscode.CustomDocument {
 		super();
 		this._uri = uri;
 		this._db = new duckdb.Database(':memory:');
-		this.db.exec(`CREATE VIEW data AS SELECT * FROM read_parquet('${uri.path}');`);
+		this.db.exec(`CREATE VIEW data AS SELECT * FROM read_parquet('${uri.fsPath}');`);
 	}
 
 	public get uri() { return this._uri; }
@@ -47,38 +54,39 @@ class ParquetDocument extends Disposable implements vscode.CustomDocument {
 		super.dispose();
 	}
 
-	runQuery(sql: string, limit: number, callback: (msg: object) => void): void {
-		const db = this.db
-		db.all(`EXPLAIN\n${sql}`, function(err, res) {
+	private formatSql(sql: string, limit: number, offset: number): string {
+		if (sql.toLowerCase().startsWith('describe')) return sql;
+		return `SELECT * FROM (\n${sql.replace(';', '')}\n) LIMIT ${limit} OFFSET ${offset}`;
+	}
+
+	runQuery(sql: string, limit: number, callback: (msg: IMessage) => void): void {
+		this.db.all(`EXPLAIN\n${sql}`, (err, res) => {
 			if (err) {
-				callback({type: 'query', success: false, message: err.message });
+				callback({ type: 'query', success: false, message: err.message });
+				return;
 			}
-			else {
-				db.all(
-					`SELECT * FROM (\n${sql.replace(';', '')}\n) LIMIT ${limit}`,
-					function(err, res) {
-						if (err) {
-							callback({type: 'query', success: false, message: err.message});
-						}
-						else {
-							callback({type: 'query', success: true, results: res });
-						}
+			this.db.all(
+				this.formatSql(sql, limit, 0),
+				function(err, res) {
+					if (err) {
+						callback({ type: 'query', success: false, message: err.message });
+						return;
 					}
-				);
-			}
+					callback({ type: 'query', success: true, results: res });
+				}
+			);
 		});
 	}
 
-	fetchMore(sql: string, limit: number, offset: number, callback: (msg: object) => void): void {
+	fetchMore(sql: string, limit: number, offset: number, callback: (msg: IMessage) => void): void {
 		this.db.all(
-			`SELECT * FROM (${sql.replace(';', '')}) LIMIT ${limit} OFFSET ${offset}`,
+			this.formatSql(sql, limit, offset),
 			function(err, res) {
 				if (err) {
 					callback({type: 'more', success: false, message: err.message});
+					return;
 				}
-				else {
-					callback({type: 'more', success: true, results: res });
-				}
+				callback({type: 'more', success: true, results: res });
 			}
 		);
 	}
@@ -208,17 +216,17 @@ export class ParquetDocumentProvider implements vscode.CustomReadonlyEditorProvi
 	}
 
 
-	private postMessage(panel: vscode.WebviewPanel, message: object): void {
+	private postMessage(panel: vscode.WebviewPanel, message: IMessage): void {
 		panel.webview.postMessage(message);
 	}
 
 	private onMessage(document: ParquetDocument, panel: vscode.WebviewPanel, message: any) {
 		switch (message.type) {
 			case 'query':
-				document.runQuery(message.sql,  message.limit, (msg: object) => this.postMessage(panel, msg));
+				document.runQuery(message.sql,  message.limit, (msg: IMessage) => this.postMessage(panel, msg));
 				return;
 			case 'more':
-				document.fetchMore(message.sql, message.limit, message.offset, (msg: object) => this.postMessage(panel, msg));
+				document.fetchMore(message.sql, message.limit, message.offset, (msg: IMessage) => this.postMessage(panel, msg));
 				return;
 
 		}
