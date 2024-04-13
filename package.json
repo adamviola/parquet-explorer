@@ -47,7 +47,7 @@
 		"eslint": "^8.26.0"
 	},
 	"dependencies": {
-		"duckdb": "^0.8.1"
+		"duckdb": "^0.10.1"
 	},
 	"binary": {
 		"module_name": "duckdb",
