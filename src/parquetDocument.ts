@@ -59,6 +59,18 @@ class ParquetDocument extends Disposable implements vscode.CustomDocument {
 		return `SELECT * FROM (\n${sql.replace(';', '')}\n) LIMIT ${limit} OFFSET ${offset}`;
 	}
 
+	private cleanResults(results: duckdb.TableData): duckdb.TableData {
+		// DuckDB can sometimes give us BigInt values, which won't JSON.stringify
+		// https://github.com/duckdb/duckdb-node/blob/f9a910d544835f55dac36485d767b1c2f6aafb87/src/statement.cpp#L122
+		for (const row of results) {
+			for (const [key, value] of Object.entries(row)) {
+				if (typeof value == "bigint")
+					row[key] = Number(value);
+			  }
+		}
+		return results;
+	}
+
 	runQuery(sql: string, limit: number, callback: (msg: IMessage) => void): void {
 		this.db.all(`EXPLAIN\n${sql}`, (err, res) => {
 			if (err) {
@@ -67,12 +79,12 @@ class ParquetDocument extends Disposable implements vscode.CustomDocument {
 			}
 			this.db.all(
 				this.formatSql(sql, limit, 0),
-				function(err, res) {
+				(err, res) => {
 					if (err) {
 						callback({ type: 'query', success: false, message: err.message });
 						return;
 					}
-					callback({ type: 'query', success: true, results: res });
+					callback({ type: 'query', success: true, results: this.cleanResults(res) });
 				}
 			);
 		});
