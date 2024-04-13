@@ -4,6 +4,7 @@
 	"description": "Explore Parquet files with SQL. Powered by DuckDB",
 	"version": "1.0.1",
 	"publisher": "AdamViola",
+	"icon": "icon.png",
 	"private": true,
 	"license": "MIT",
 	"repository": {
