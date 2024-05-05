@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { Disposable } from './dispose';
 import { getNonce } from './util';
+import { parse } from "path"
 
 import * as duckdb from 'duckdb';
 
@@ -32,7 +33,14 @@ class ParquetDocument extends Disposable implements vscode.CustomDocument {
 		super();
 		this._uri = uri;
 		this._db = new duckdb.Database(':memory:');
-		this.db.exec(`CREATE VIEW data AS SELECT * FROM read_parquet('${uri.fsPath}');`);
+
+		const config = vscode.workspace.getConfiguration('parquet-explorer')
+		let tableName: string = config.get("tableName")!;
+		if (config.get("fileNameAsTableName")!)
+			tableName = parse(uri.fsPath).name
+		this.db.exec(
+			`CREATE VIEW ${tableName} AS SELECT * FROM read_parquet('${uri.fsPath}');`
+		);
 	}
 
 	public get uri() { return this._uri; }
@@ -66,7 +74,7 @@ class ParquetDocument extends Disposable implements vscode.CustomDocument {
 			for (const [key, value] of Object.entries(row)) {
 				if (typeof value == "bigint")
 					row[key] = Number(value);
-			  }
+			}
 		}
 		return results;
 	}
@@ -93,12 +101,12 @@ class ParquetDocument extends Disposable implements vscode.CustomDocument {
 	fetchMore(sql: string, limit: number, offset: number, callback: (msg: IMessage) => void): void {
 		this.db.all(
 			this.formatSql(sql, limit, offset),
-			function(err, res) {
+			function (err, res) {
 				if (err) {
-					callback({type: 'more', success: false, message: err.message});
+					callback({ type: 'more', success: false, message: err.message });
 					return;
 				}
-				callback({type: 'more', success: true, results: res });
+				callback({ type: 'more', success: true, results: res });
 			}
 		);
 	}
@@ -111,7 +119,7 @@ export class ParquetDocumentProvider implements vscode.CustomReadonlyEditorProvi
 		return vscode.window.registerCustomEditorProvider(
 			ParquetDocumentProvider.viewType,
 			new ParquetDocumentProvider(context),
-			{supportsMultipleEditorsPerDocument: false},
+			{ supportsMultipleEditorsPerDocument: false },
 		);
 	}
 
@@ -127,7 +135,6 @@ export class ParquetDocumentProvider implements vscode.CustomReadonlyEditorProvi
 		_token: vscode.CancellationToken
 	): Promise<ParquetDocument> {
 		const document: ParquetDocument = await ParquetDocument.create(uri, openContext.backupId);
-
 		return document;
 	}
 
@@ -141,7 +148,7 @@ export class ParquetDocumentProvider implements vscode.CustomReadonlyEditorProvi
 			enableScripts: true,
 		};
 
-		webviewPanel.webview.html = this.getHtmlForWebview(webviewPanel.webview);
+		webviewPanel.webview.html = this.getHtmlForWebview(webviewPanel.webview, document.uri);
 
 		webviewPanel.webview.onDidReceiveMessage(e => this.onMessage(document, webviewPanel, e));
 	}
@@ -150,14 +157,14 @@ export class ParquetDocumentProvider implements vscode.CustomReadonlyEditorProvi
 	/**
 	 * Get the static HTML used for in our editor's webviews.
 	 */
-	private getHtmlForWebview(webview: vscode.Webview): string {
+	private getHtmlForWebview(webview: vscode.Webview, uri: vscode.Uri): string {
 		// Local path to script and css for the webview
 		const jsUri = webview.asWebviewUri(vscode.Uri.joinPath(
 			this._context.extensionUri, 'media', 'parquetExplorer.js'));
 
 		const cssUri = webview.asWebviewUri(vscode.Uri.joinPath(
 			this._context.extensionUri, 'media', 'parquetExplorer.css'));
-		
+
 		const codeInputJsUri = webview.asWebviewUri(vscode.Uri.joinPath(
 			this._context.extensionUri, 'media', 'code-input.min.js'));
 
@@ -179,6 +186,17 @@ export class ParquetDocumentProvider implements vscode.CustomReadonlyEditorProvi
 
 		// Use a nonce to whitelist which scripts can be run
 		const nonce = getNonce();
+
+		const config = vscode.workspace.getConfiguration('parquet-explorer')
+		let tableName: string = config.get("tableName")!;
+		if (config.get("fileNameAsTableName")!)
+			tableName = parse(uri.fsPath).name
+
+		let defaultQuery: string = config.get("defaultQuery")!;
+		defaultQuery = defaultQuery.replace(/\${[^{]+}/g, (match) => {
+			const name = match.slice(2, -1).trim();
+			return name == "tableName" ? tableName : "";
+		});
 
 		return `
 			<!DOCTYPE html>
@@ -210,7 +228,7 @@ export class ParquetDocumentProvider implements vscode.CustomReadonlyEditorProvi
 			<body>
 				<div id="wrapper">
 				<div id="controls">
-					<code-input nonce="${nonce}" lang="SQL"></code-input>
+					<code-input nonce="${nonce}" lang="SQL" value="${defaultQuery}"></code-input>
 				</div>
 				</div>
 				<center>
@@ -235,7 +253,7 @@ export class ParquetDocumentProvider implements vscode.CustomReadonlyEditorProvi
 	private onMessage(document: ParquetDocument, panel: vscode.WebviewPanel, message: any) {
 		switch (message.type) {
 			case 'query':
-				document.runQuery(message.sql,  message.limit, (msg: IMessage) => this.postMessage(panel, msg));
+				document.runQuery(message.sql, message.limit, (msg: IMessage) => this.postMessage(panel, msg));
 				return;
 			case 'more':
 				document.fetchMore(message.sql, message.limit, message.offset, (msg: IMessage) => this.postMessage(panel, msg));

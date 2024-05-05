@@ -1,23 +1,23 @@
 // Provides callback for when HTML element loads
 function waitForElement(selector) {
-    return new Promise(resolve => {
-        if (document.querySelector(selector)) {
-            return resolve(document.querySelector(selector));
-        }
+	return new Promise(resolve => {
+		if (document.querySelector(selector)) {
+			return resolve(document.querySelector(selector));
+		}
 
-        const observer = new MutationObserver(mutations => {
-            if (document.querySelector(selector)) {
-                resolve(document.querySelector(selector));
-                observer.disconnect();
-            }
-        });
+		const observer = new MutationObserver(mutations => {
+			if (document.querySelector(selector)) {
+				resolve(document.querySelector(selector));
+				observer.disconnect();
+			}
+		});
 
 		observer.observe(document.documentElement, {
 			childList: true,
 			subtree: true
 		});
-        
-    });
+
+	});
 }
 
 function waitForElements(selectors) {
@@ -72,7 +72,7 @@ function waitForElements(selectors) {
 						const backgroundBackground = document.createElement("div");
 						const background = document.createElement("div");
 						const text = document.createElement("div");
-						
+
 						backgroundBackground.className = "headerBackgroundBackground";
 						background.className = "headerBackground";
 						text.className = "headerText";
@@ -92,7 +92,7 @@ function waitForElements(selectors) {
 							const resultData = document.createElement("td");
 							const background = document.createElement("div");
 							const text = document.createElement("div");
-							
+
 							background.className = "resultBackground"
 							text.className = "resultText"
 							text.innerText = value;
@@ -111,7 +111,7 @@ function waitForElements(selectors) {
 					const backgroundBackground = document.createElement("div");
 					const background = document.createElement("div");
 					const text = document.createElement("div");
-					
+
 					backgroundBackground.className = "headerBackgroundBackground";
 					background.className = "headerBackground";
 					text.className = "headerText";
@@ -135,11 +135,11 @@ function waitForElements(selectors) {
 							const resultData = document.createElement("td");
 							const background = document.createElement("div");
 							const text = document.createElement("div");
-							
+
 							background.className = "resultBackground"
 							text.className = "resultText"
 							text.innerText = value;
-	
+
 							resultData.append(background, text);
 							resultRow.append(resultData);
 						})
@@ -172,9 +172,9 @@ function waitForElements(selectors) {
 	});
 
 	// Initialize the text area syntax highlighting
-	codeInput.registerTemplate("syntax-highlighted", 
+	codeInput.registerTemplate("syntax-highlighted",
 		codeInput.templates.prism(
-			Prism, 
+			Prism,
 			[
 				new codeInput.plugins.Indent()
 			]
@@ -199,7 +199,7 @@ function waitForElements(selectors) {
 			document.getElementById("results").style.marginTop = `${height}px`;
 		}
 
-		vscode.setState({sql: event.target.parentElement.value})
+		vscode.setState({ sql: event.target.parentElement.value })
 	}
 
 	const onChange = (event) => {
@@ -221,7 +221,7 @@ function waitForElements(selectors) {
 			sql: sql,
 			limit: batchSize
 		})
-		
+
 	}
 
 	waitForElements(["textarea", "#resultsHeader", "#resultsBody", "#loadingIcon"]).then(([textarea, resultsHeader, resultsBody, loadingIcon]) => {
@@ -235,11 +235,12 @@ function waitForElements(selectors) {
 		textarea.addEventListener("change", onChange);
 		textarea.addEventListener("keydown", onKeyDown, true);
 
-		// Load state
+		// Load stored query (if any) and trigger its execution
 		const state = vscode.getState();
-		textarea.textContent = state ? state.sql : "SELECT * FROM data;";
+		if (state)
+			textarea.parentElement.value = state.sql;
 		textarea.dispatchEvent(new Event("input"));
 		textarea.dispatchEvent(new Event("change"));
 	})
-	
+
 }());

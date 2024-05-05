@@ -20,6 +20,27 @@
 	"activationEvents": [],
 	"main": "./out/extension.js",
 	"contributes": {
+		"configuration": {
+			"title": "Parquet Explorer",
+			"properties": {
+				"parquet-explorer.defaultQuery": {
+					"type": "string",
+					"editPresentation": "multilineText",
+					"default": "SELECT * FROM ${tableName}",
+					"markdownDescription": "Use `${tableName}` to include the table name of the Parquet file."
+				},
+				"parquet-explorer.tableName": {
+					"type": "string",
+					"default": "data",
+					"description": "SQL table name associated with the Parquet file."
+				},
+				"parquet-explorer.useFileNameAsTableName": {
+					"type": "boolean",
+					"default": false,
+					"markdownDescription": "Whether the file name is used as the SQL table name of the Parquet file. Overrides `#parquet-explorer.tableName#`."
+				}
+			}
+		},
 		"customEditors": [
 			{
 				"viewType": "parquetExplorer.explorer",
@@ -28,7 +49,8 @@
 					{
 						"filenamePattern": "*.parquet"
 					}
-				]
+				],
+				"priority": "default"
 			}
 		]
 	},
