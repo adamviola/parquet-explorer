@@ -1,82 +1,82 @@
 {
-	"name": "parquet-explorer",
-	"displayName": "Parquet Explorer",
-	"description": "Explore Parquet files with SQL. Powered by DuckDB",
-	"version": "1.1.0",
-	"publisher": "AdamViola",
-	"icon": "icon.png",
-	"private": true,
-	"license": "MIT",
-	"repository": {
-		"type": "git",
-		"url": "https://github.com/adamviola/parquet-explorer"
-	},
-	"engines": {
-		"vscode": "^1.74.0"
-	},
-	"categories": [
-		"Other"
-	],
-	"activationEvents": [],
-	"main": "./out/extension.js",
-	"contributes": {
-		"configuration": {
-			"title": "Parquet Explorer",
-			"properties": {
-				"parquet-explorer.defaultQuery": {
-					"type": "string",
-					"editPresentation": "multilineText",
-					"default": "SELECT * FROM ${tableName}",
-					"markdownDescription": "Use `${tableName}` to include the table name of the Parquet file."
-				},
-				"parquet-explorer.tableName": {
-					"type": "string",
-					"default": "data",
-					"description": "SQL table name associated with the Parquet file."
-				},
-				"parquet-explorer.useFileNameAsTableName": {
-					"type": "boolean",
-					"default": false,
-					"markdownDescription": "Whether the file name is used as the SQL table name of the Parquet file. Overrides `#parquet-explorer.tableName#`."
-				}
-			}
-		},
-		"customEditors": [
-			{
-				"viewType": "parquetExplorer.explorer",
-				"displayName": "Parquet Explorer",
-				"selector": [
-					{
-						"filenamePattern": "*.parquet"
-					},
-					{
-						"filenamePattern": "*.pq"
-					}
-				],
-				"priority": "default"
-			}
-		]
-	},
-	"scripts": {
-		"vscode:prepublish": "rm -rf ./out; mkdir ./out ./out/binding/; cp ./node_modules/duckdb/lib/binding/duckdb.node ./out/binding/; esbuild ./src/extension.ts --bundle --outfile=out/extension.js --external:vscode --external:nock --external:aws-sdk --external:mock-aws-s3 --format=cjs --platform=node --minify",
-		"compile": "tsc -p ./",
-		"watch": "tsc -w -p ./",
-		"lint": "eslint \"src/**/*.ts\""
-	},
-	"devDependencies": {
-		"@types/node": "^16.18.34",
-		"@types/vscode": "^1.73.0",
-		"@typescript-eslint/eslint-plugin": "^5.42.0",
-		"@typescript-eslint/parser": "^5.42.0",
-		"esbuild": "^0.18.17",
-		"eslint": "^8.26.0"
-	},
-	"dependencies": {
-		"duckdb": "^0.10.1"
-	},
-	"binary": {
-		"module_name": "duckdb",
-		"module_path": "./out/binding/",
-		"host": "https://duckdb-node.s3.amazonaws.com"
-	}
+    "name": "parquet-explorer",
+    "displayName": "Parquet Explorer",
+    "description": "Explore Parquet files with SQL. Powered by DuckDB",
+    "version": "1.1.0",
+    "publisher": "AdamViola",
+    "icon": "icon.png",
+    "private": true,
+    "license": "MIT",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/adamviola/parquet-explorer"
+    },
+    "engines": {
+        "vscode": "^1.74.0"
+    },
+    "categories": [
+        "Other"
+    ],
+    "activationEvents": [],
+    "main": "./out/extension.js",
+    "contributes": {
+        "configuration": {
+            "title": "Parquet Explorer",
+            "properties": {
+                "parquet-explorer.defaultQuery": {
+                    "type": "string",
+                    "editPresentation": "multilineText",
+                    "default": "SELECT * FROM ${tableName}",
+                    "markdownDescription": "Use `${tableName}` to include the table name of the Parquet file."
+                },
+                "parquet-explorer.tableName": {
+                    "type": "string",
+                    "default": "data",
+                    "description": "SQL table name associated with the Parquet file."
+                },
+                "parquet-explorer.useFileNameAsTableName": {
+                    "type": "boolean",
+                    "default": false,
+                    "markdownDescription": "Whether the file name is used as the SQL table name of the Parquet file. Overrides `#parquet-explorer.tableName#`."
+                }
+            }
+        },
+        "customEditors": [
+            {
+                "viewType": "parquetExplorer.explorer",
+                "displayName": "Parquet Explorer",
+                "selector": [
+                    {
+                        "filenamePattern": "*.parquet"
+                    },
+                    {
+                        "filenamePattern": "*.pq"
+                    }
+                ],
+                "priority": "default"
+            }
+        ]
+    },
+    "scripts": {
+        "vscode:prepublish": "rm -rf ./out; mkdir ./out ./out/binding/; cp ./node_modules/duckdb/lib/binding/duckdb.node ./out/binding/; esbuild ./src/extension.ts --bundle --outfile=out/extension.js --external:vscode --external:nock --external:aws-sdk --external:mock-aws-s3 --format=cjs --platform=node --minify",
+        "compile": "tsc -p ./",
+        "watch": "tsc -w -p ./",
+        "lint": "eslint \"src/**/*.ts\""
+    },
+    "devDependencies": {
+        "@types/node": "^16.18.34",
+        "@types/vscode": "^1.73.0",
+        "@typescript-eslint/eslint-plugin": "^5.42.0",
+        "@typescript-eslint/parser": "^5.42.0",
+        "esbuild": "^0.18.17",
+        "eslint": "^8.26.0"
+    },
+    "dependencies": {
+        "duckdb": "^0.10.1"
+    },
+    "binary": {
+        "module_name": "duckdb",
+        "module_path": "./out/binding/",
+        "host": "https://duckdb-node.s3.amazonaws.com"
+    }
 }
