@@ -45,12 +45,18 @@ function waitForElements(selectors) {
     const vscode = acquireVsCodeApi();
 
     let textAreaElement = undefined;
-    let resultsHeaderElement = undefined;
-    let resultsBodyElement = undefined;
     let loadingIconElement = undefined;
+    let errorMessageElement = undefined;
+    let tableElement = undefined;
+    let table = undefined;
 
-    const batchSize = 100;
+    // Whether the spinner is currently showoing
     let loadingScroll = false;
+
+    // Whether or not there's additional query results to load
+    let moreToLoad = false;
+
+    // Offset to use when fetching additional results
     let scrollOffset = 0;
 
     // Handle messages sent from the extension to the webview
@@ -58,117 +64,78 @@ function waitForElements(selectors) {
         const message = event.data; // The json data that the extension sent
         switch (message.type) {
             case 'query':
+                loadingScroll = false;
                 loadingIconElement.style.display = "none";
-                textAreaElement.disabled = false
-
-                while (resultsHeaderElement.firstChild) {
-                    resultsHeaderElement.removeChild(resultsHeaderElement.lastChild);
-                }
+                textAreaElement.disabled = false;
 
                 if (message.results) {
-                    const headerRow = document.createElement("tr");
-                    Object.keys(message.results[0]).forEach((column) => {
-                        const columnHeader = document.createElement("th");
-                        const backgroundBackground = document.createElement("div");
-                        const background = document.createElement("div");
-                        const text = document.createElement("div");
+                    tableElement.style.display = "block"
+                    moreToLoad = message.results.length >= CHUNK_SIZE
+                    scrollOffset = 0
 
-                        backgroundBackground.className = "headerBackgroundBackground";
-                        background.className = "headerBackground";
-                        text.className = "headerText";
-                        text.innerText = column;
-
-                        columnHeader.append(backgroundBackground, background, text);
-                        headerRow.append(columnHeader);
-                    });
-                    resultsHeaderElement.append(headerRow);
-
-                    while (resultsBodyElement.firstChild) {
-                        resultsBodyElement.removeChild(resultsBodyElement.lastChild);
-                    }
-                    message.results.forEach((result) => {
-                        const resultRow = document.createElement("tr");
-                        Object.values(result).forEach((value) => {
-                            const resultData = document.createElement("td");
-                            const background = document.createElement("div");
-                            const text = document.createElement("div");
-
-                            background.className = "resultBackground"
-                            text.className = "resultText"
-                            text.innerText = value;
-
-                            resultData.append(background, text);
-                            resultRow.append(resultData);
+                    const columns = [
+                        { formatter: "rownum", hozAlign: "right", headerHozAlign: "center", width: 1, frozen: true, resizable: false, },
+                        ...message.describe.map(column => {
+                            return { title: column.column_name, field: column.column_name, headerTooltip: column.column_type }
                         })
-                        resultsBodyElement.append(resultRow);
-                    })
+                    ];
 
+                    if (table) {
+                        table.replaceData(message.results);
+                        table.setColumns(columns);
+                    }
+                    else {
+                        table = new Tabulator("#results", {
+                            height: "calc(100% + 10vh)",
+                            data: message.results,
+                            layout: "fitData",
+                            placeholder: "No Results",
+                            resizableColumnGuide: true,
+                            columnDefaults: {
+                                resizable: true,
+                                headerSort: false,
+                                formatter: "textarea",
+                                maxInitialWidth: window.innerWidth * 0.4,
+                            },
+                            columns: columns
+                        });
+                        table.on("scrollVertical", function (top) {
+                            const element = table.rowManager.element;
+                            if (top >= element.scrollHeight - element.offsetHeight && !loadingScroll && moreToLoad) {
+                                loadingScroll = true;
+                                scrollOffset += CHUNK_SIZE;
+                                loadingIconElement.style.display = "block"
+                                textAreaElement.disabled = true
+                                const sql = textAreaElement.parentElement.value;
+                                vscode.postMessage({
+                                    type: 'more',
+                                    sql: sql,
+                                    limit: CHUNK_SIZE,
+                                    offset: scrollOffset
+                                })
+                            }
+                        });
+                    }
 
                 }
                 else if (message.message) {
-                    const headerRow = document.createElement("tr");
-                    const columnHeader = document.createElement("th");
-                    const backgroundBackground = document.createElement("div");
-                    const background = document.createElement("div");
-                    const text = document.createElement("div");
-
-                    backgroundBackground.className = "headerBackgroundBackground";
-                    background.className = "headerBackground";
-                    text.className = "headerText";
-                    text.innerText = message.message;
-
-                    columnHeader.append(backgroundBackground, background, text);
-                    headerRow.append(columnHeader);
-                    resultsHeaderElement.append(headerRow);
-
+                    tableElement.style.display = "none"
+                    errorMessageElement.style.display = "block";
+                    errorMessageElement.textContent = message.message;
                 }
-                return;
 
             case 'more':
+                loadingScroll = false;
                 loadingIconElement.style.display = "none";
                 textAreaElement.disabled = false
 
-                if (message.results.length > 0) {
-                    message.results.forEach((result) => {
-                        const resultRow = document.createElement("tr");
-                        Object.values(result).forEach((value) => {
-                            const resultData = document.createElement("td");
-                            const background = document.createElement("div");
-                            const text = document.createElement("div");
+                if (message.results.length < CHUNK_SIZE)
+                    moreToLoad = false
 
-                            background.className = "resultBackground"
-                            text.className = "resultText"
-                            text.innerText = value;
-
-                            resultData.append(background, text);
-                            resultRow.append(resultData);
-                        })
-                        resultsBodyElement.append(resultRow);
-                    });
-                    loadingScroll = false;
+                if (message.results.length > 0 && table) {
+                    table.addData(message.results)
                 }
         }
-    });
-
-    window.addEventListener("scroll", (event) => {
-        let scroll = this.scrollY;
-
-        const elem = document.getElementById("results");
-        if (this.innerHeight + this.scrollY >= elem.offsetTop + elem.offsetHeight && !loadingScroll) {
-            loadingScroll = true;
-            scrollOffset += batchSize;
-            loadingIconElement.style.display = "block"
-            textAreaElement.disabled = true
-            const sql = textAreaElement.parentElement.value;
-            vscode.postMessage({
-                type: 'more',
-                sql: sql,
-                limit: batchSize,
-                offset: scrollOffset
-            })
-        }
-
-        document.getElementById("controls").style.top = `-${scroll}px`;
     });
 
     // Initialize the text area syntax highlighting
@@ -196,7 +163,6 @@ function waitForElements(selectors) {
         const height = document.getElementById("controls").offsetHeight;
         if (controlsHeight != height) {
             controlsHeight = height;
-            document.getElementById("results").style.marginTop = `${height}px`;
         }
 
         vscode.setState({ sql: event.target.parentElement.value })
@@ -205,30 +171,30 @@ function waitForElements(selectors) {
     const onChange = (event) => {
         const sql = event.target.parentElement.value;
 
-        loadingScroll = false;
-
+        loadingScroll = true;
+        tableElement.style.display = "none"
         loadingIconElement.style.display = "block"
+        errorMessageElement.style.display = "none";
         textAreaElement.disabled = true
-        while (resultsHeaderElement.firstChild) {
-            resultsHeaderElement.removeChild(resultsHeaderElement.lastChild);
-        }
-        while (resultsBodyElement.firstChild) {
-            resultsBodyElement.removeChild(resultsBodyElement.lastChild);
+
+        if (table) {
+            table.replaceData([]);
+            table.setColumns([]);
         }
 
         vscode.postMessage({
             type: 'query',
             sql: sql,
-            limit: batchSize
+            limit: CHUNK_SIZE,
         })
 
     }
 
-    waitForElements(["textarea", "#resultsHeader", "#resultsBody", "#loadingIcon"]).then(([textarea, resultsHeader, resultsBody, loadingIcon]) => {
+    waitForElements(["textarea", "#results", "#loadingIcon", "#errorMessage"]).then(([textarea, results, loadingIcon, errorMessage]) => {
         textAreaElement = textarea;
-        resultsHeaderElement = resultsHeader;
-        resultsBodyElement = resultsBody;
         loadingIconElement = loadingIcon;
+        errorMessageElement = errorMessage;
+        tableElement = results;
 
         // Register text-area event handlers
         textarea.addEventListener("input", onInput);
@@ -241,6 +207,7 @@ function waitForElements(selectors) {
             textarea.parentElement.value = state.sql;
         textarea.dispatchEvent(new Event("input"));
         textarea.dispatchEvent(new Event("change"));
+
     })
 
 }());

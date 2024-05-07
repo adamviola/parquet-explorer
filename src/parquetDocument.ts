@@ -10,6 +10,7 @@ interface IMessage {
     success: boolean;
     message?: string;
     results?: duckdb.TableData;
+    describe?: duckdb.TableData;
 }
 
 /**
@@ -36,8 +37,9 @@ class ParquetDocument extends Disposable implements vscode.CustomDocument {
 
         const config = vscode.workspace.getConfiguration('parquet-explorer')
         let tableName: string = config.get("tableName")!;
-        if (config.get("fileNameAsTableName")!)
+        if (config.get("useFileNameAsTableName"))
             tableName = parse(uri.fsPath).name
+
         this.db.exec(
             `CREATE VIEW ${tableName} AS SELECT * FROM read_parquet('${uri.fsPath}');`
         );
@@ -63,7 +65,6 @@ class ParquetDocument extends Disposable implements vscode.CustomDocument {
     }
 
     private formatSql(sql: string, limit: number, offset: number): string {
-        if (sql.toLowerCase().startsWith('describe')) return sql;
         return `SELECT * FROM (\n${sql.replace(';', '')}\n) LIMIT ${limit} OFFSET ${offset}`;
     }
 
@@ -80,22 +81,28 @@ class ParquetDocument extends Disposable implements vscode.CustomDocument {
     }
 
     runQuery(sql: string, limit: number, callback: (msg: IMessage) => void): void {
-        this.db.all(`EXPLAIN\n${sql}`, (err, res) => {
-            if (err) {
-                callback({ type: 'query', success: false, message: err.message });
-                return;
-            }
-            this.db.all(
-                this.formatSql(sql, limit, 0),
-                (err, res) => {
-                    if (err) {
-                        callback({ type: 'query', success: false, message: err.message });
-                        return;
-                    }
-                    callback({ type: 'query', success: true, results: this.cleanResults(res) });
+        // Fetch resulting column names and types
+        this.db.all(
+            `DESCRIBE (${sql.replace(';', '')});`,
+            (err, descRes) => {
+                if (err) {
+                    callback({ type: 'query', success: false, message: err.message });
+                    return;
                 }
-            );
-        });
+
+                // Execute query
+                this.db.all(
+                    this.formatSql(sql, limit, 0),
+                    (err, res) => {
+                        if (err) {
+                            callback({ type: 'query', success: false, message: err.message });
+                            return;
+                        }
+                        callback({ type: 'query', success: true, results: this.cleanResults(res), describe: descRes });
+                    }
+                );
+            }
+        );
     }
 
     fetchMore(sql: string, limit: number, offset: number, callback: (msg: IMessage) => void): void {
@@ -180,6 +187,12 @@ export class ParquetDocumentProvider implements vscode.CustomReadonlyEditorProvi
         const prismCssUri = webview.asWebviewUri(vscode.Uri.joinPath(
             this._context.extensionUri, 'media', 'prism.css'));
 
+        const tabulatorJsUri = webview.asWebviewUri(vscode.Uri.joinPath(
+            this._context.extensionUri, 'media', 'tabulator.min.js'));
+
+        const tabulatorCssUri = webview.asWebviewUri(vscode.Uri.joinPath(
+            this._context.extensionUri, 'media', 'tabulator.min.css'));
+
         const loadingIconUri = webview.asWebviewUri(vscode.Uri.joinPath(
             this._context.extensionUri, 'media', 'loading_icon.gif'));
 
@@ -189,7 +202,7 @@ export class ParquetDocumentProvider implements vscode.CustomReadonlyEditorProvi
 
         const config = vscode.workspace.getConfiguration('parquet-explorer')
         let tableName: string = config.get("tableName")!;
-        if (config.get("fileNameAsTableName")!)
+        if (config.get("useFileNameAsTableName"))
             tableName = parse(uri.fsPath).name
 
         let defaultQuery: string = config.get("defaultQuery")!;
@@ -212,6 +225,13 @@ export class ParquetDocumentProvider implements vscode.CustomReadonlyEditorProvi
 
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
+                <script nonce="${nonce}">
+                    const CHUNK_SIZE = ${vscode.workspace.getConfiguration('parquet-explorer').get("chunkSize")}
+                </script>
+
+                <script nonce="${nonce}" src="${tabulatorJsUri}"></script>
+                <link rel="stylesheet" href="${tabulatorCssUri}">
+
                 <script nonce="${nonce}" src="${prismJsUri}"></script>
                 <link rel="stylesheet" href="${prismCssUri}">
 
@@ -226,18 +246,17 @@ export class ParquetDocumentProvider implements vscode.CustomReadonlyEditorProvi
                 <title>Parquet Explorer</title>
             </head>
             <body>
-                <div id="wrapper">
                 <div id="controls">
                     <code-input nonce="${nonce}" lang="SQL" value="${defaultQuery}"></code-input>
                 </div>
                 </div>
-                <center>
-                    <table id="results">
-                        <thead id="resultsHeader"></thead>
-                        <tbody id="resultsBody"></tbody>
-                    </table>
-                    <img id="loadingIcon" src="${loadingIconUri}" />
-                </center>
+                <div id="resultsContainer">
+                    <div id="results"></div>
+                    <div id="feedback">
+                        <img id="loadingIcon" src="${loadingIconUri}" />
+                        <div id="errorMessage"></div>
+                    </div>
+                </div>
                 
             </body>
             

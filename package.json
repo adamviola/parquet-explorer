@@ -2,7 +2,7 @@
     "name": "parquet-explorer",
     "displayName": "Parquet Explorer",
     "description": "Explore Parquet files with SQL. Powered by DuckDB",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "publisher": "AdamViola",
     "icon": "icon.png",
     "private": true,
@@ -32,12 +32,18 @@
                 "parquet-explorer.tableName": {
                     "type": "string",
                     "default": "data",
-                    "description": "SQL table name associated with the Parquet file."
+                    "markdownDescription": "SQL table name associated with the Parquet file. May be overridden by `#parquet-explorer.useFileNameAsTableName#`."
                 },
                 "parquet-explorer.useFileNameAsTableName": {
                     "type": "boolean",
                     "default": false,
                     "markdownDescription": "Whether the file name is used as the SQL table name of the Parquet file. Overrides `#parquet-explorer.tableName#`."
+                },
+                "parquet-explorer.chunkSize": {
+                    "type": "integer",
+                    "default": 100,
+                    "minimum": 30,
+                    "markdownDescription": "Number of query results to fetch per request."
                 }
             }
         },

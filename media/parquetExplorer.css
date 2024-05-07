@@ -1,17 +1,32 @@
-#wrapper {
-    position: relative;
+html {
+    height: 100%;
+}
+
+body {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
 }
 
 #controls {
-    position: fixed;
-    top: 0;
-    left: 50%;
-    transform: translateX(-50%);
+    margin-top: 10px;
+    margin-bottom: calc(10px + 10vh);
+    margin-left: 12.5%;
+    margin-right: 12.5%;
+}
+
+#resultsContainer {
+    flex-grow: 1;
+    margin-left: -20px;
+    height: 0;
+}
+
+#results {
+    margin-top: -10vh;
 }
 
 code-input {
     height: auto;
-    width: 75vw;
     min-width: 200pt;
 }
 
@@ -20,78 +35,95 @@ code-input pre {
     min-height: 16pt;
 }
 
+
+.tabulator,
+.tabulator-header,
+.tabulator-table,
+.tabulator-row,
+.tabulator-row-even {
+    background: none !important;
+    border: none !important;
+}
+
+.tabulator-table {
+    color: var(--vscode-editor-foreground) !important;
+}
+
+.tabulator-tableholder,
+.tabulator-header-contents {
+    display: flex;
+}
+
+.tabulator-tableholder::before,
+.tabulator-tableholder::after,
+.tabulator-header-contents::before,
+.tabulator-header-contents::after {
+    content: "";
+    flex-grow: 1;
+}
+
+.tabulator-col {
+    background-color: color-mix(in srgb, var(--vscode-editor-foreground), transparent 90%) !important;
+    color: var(--vscode-editor-foreground) !important;
+    border: none !important;
+}
+
+.tabulator-cell {
+    padding: 10px !important;
+    border: none !important;
+    max-height: 20vh !important;
+    overflow: auto !important;
+    text-overflow: initial !important;
+}
+
+.tabulator-col-content {
+    padding: 10px !important;
+}
+
+.tabulator-row-even .tabulator-cell {
+    background-color: color-mix(in srgb, var(--vscode-editor-foreground), transparent 95%);
+}
+
+.tabulator-frozen-left {
+    background-color: var(--vscode-editor-background) !important;
+    color: color-mix(in srgb, var(--vscode-editor-foreground), transparent 80%) !important;
+    overflow: visible !important;
+    direction: rtl;
+}
+
+
+.tabulator-col:nth-child(2),
+.tabulator-cell:nth-child(2) {
+    border-top-left-radius: 5px;
+    border-bottom-left-radius: 5px;
+}
+
+.tabulator-col:nth-last-child(2),
+.tabulator-cell:nth-last-child(2) {
+    border-top-right-radius: 5px;
+    border-bottom-right-radius: 5px;
+}
+
+#feedback {
+    display: flex;
+    align-items: center;
+    flex-direction: column;
+    margin-top: -10vh;
+}
+
+
 #loadingIcon {
-    width: 2%;
-    padding-top: 20px;
-}
-
-table {
-    border: none;
-    border-collapse: collapse;
-}
-
-tr:nth-child(odd) td .resultBackground,
-.headerBackgroundBackground {
     background-color: var(--vscode-editor-background);
+    height: 5vh;
+    padding: 1vh;
+    border-radius: 3.5vh;
+    z-index: 100;
 }
 
-tr:nth-child(even) td .resultBackground,
-.headerBackground {
-    background: var(--vscode-editor-foreground);
-}
-
-
-tr:nth-child(even) td:first-child .resultBackground,
-th:first-child .headerBackground {
-    border-radius: 5px 0 0 5px;
-}
-
-tr:nth-child(even) td:last-child .resultBackground,
-th:last-child .headerBackground {
-    border-radius: 0 5px 5px 0;
-}
-
-
-td {
-    position: relative;
-    z-index: -2;
-}
-
-th {
-    position: sticky;
-    top: 0;
-    z-index: 0;
-}
-
-.resultBackground,
-.headerBackground,
-.headerBackgroundBackground {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    opacity: 0.05
-}
-
-.headerBackground {
-    opacity: 0.1;
-}
-
-.headerBackgroundBackground {
-    opacity: 1;
-    z-index: -1;
-}
-
-.resultText,
-.headerText {
-    width: 100%;
-    height: 100%;
+#errorMessage {
+    background-color: color-mix(in srgb, var(--vscode-editor-foreground), transparent 90%) !important;
     padding: 10px;
-    min-width: 40px;
-    text-align: left;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    /* max-width: 100px; */
+    color: var(--vscode-editor-foreground) !important;
+    font-weight: bold;
+    border-radius: 5px;
 }
