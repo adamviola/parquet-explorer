@@ -2,7 +2,7 @@
     "name": "parquet-explorer",
     "displayName": "Parquet Explorer",
     "description": "Explore Parquet files with SQL. Powered by DuckDB",
-    "version": "1.2.0",
+    "version": "1.2.1",
     "publisher": "AdamViola",
     "icon": "icon.png",
     "private": true,
