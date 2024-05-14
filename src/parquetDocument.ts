@@ -108,12 +108,12 @@ class ParquetDocument extends Disposable implements vscode.CustomDocument {
     fetchMore(sql: string, limit: number, offset: number, callback: (msg: IMessage) => void): void {
         this.db.all(
             this.formatSql(sql, limit, offset),
-            function (err, res) {
+            (err, res) => {
                 if (err) {
                     callback({ type: 'more', success: false, message: err.message });
                     return;
                 }
-                callback({ type: 'more', success: true, results: res });
+                callback({ type: 'more', success: true, results: this.cleanResults(res) });
             }
         );
     }
