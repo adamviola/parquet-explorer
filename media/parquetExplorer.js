@@ -49,6 +49,7 @@ function waitForElements(selectors) {
     let errorMessageElement = undefined;
     let tableElement = undefined;
     let table = undefined;
+    let last_sql = undefined;
 
     // Whether the spinner is currently showoing
     let loadingScroll = false;
@@ -172,6 +173,11 @@ function waitForElements(selectors) {
 
     const onChange = (event) => {
         const sql = event.target.parentElement.value;
+
+        // Ctrl/Cmd + Enter causes onChange to be called twice
+        if (sql === last_sql)
+            return;
+        last_sql = sql;
 
         loadingScroll = true;
         tableElement.style.display = "none"
