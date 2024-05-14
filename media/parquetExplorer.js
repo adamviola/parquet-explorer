@@ -123,6 +123,7 @@ function waitForElements(selectors) {
                     errorMessageElement.style.display = "block";
                     errorMessageElement.textContent = message.message;
                 }
+                break;
 
             case 'more':
                 loadingScroll = false;
@@ -135,6 +136,7 @@ function waitForElements(selectors) {
                 if (message.results.length > 0 && table) {
                     table.addData(message.results)
                 }
+                break;
         }
     });
 
