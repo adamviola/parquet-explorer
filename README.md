@@ -7,7 +7,7 @@ exceution against Apache Parquet files. Under the hood, SQL queries are executed
 by [DuckDB](https://duckdb.org/), which implements efficient partial reading and
 parallel query processing.
 
-![Screenshot](./screenshot.png)
+![Demonstration of Parquet Explorer against iris.parquet](./iris.gif)
 
 # Quick Start
 
