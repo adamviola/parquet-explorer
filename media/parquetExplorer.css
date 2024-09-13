@@ -62,6 +62,10 @@ code-input pre {
     flex-grow: 1;
 }
 
+.tabulator-header .tabulator-col {
+    user-select: text;
+}
+
 .tabulator-col {
     background-color: color-mix(in srgb, var(--vscode-editor-foreground), transparent 90%) !important;
     color: var(--vscode-editor-foreground) !important;
