@@ -38,6 +38,23 @@ function waitForElements(selectors) {
 
 }
 
+// https://tabulator.info/docs/6.2/format
+function getFormatter(columnType) {
+    switch (columnType) {
+        case "DATE":
+            return {
+                formatter: "datetime",
+                formatterParams: {
+                    inputFormat: "iso",
+                    outputFormat: "yyyy-MM-dd",
+                    timezone: "utc", // this could be configurable
+                },
+            };
+        default:
+            return {};
+    }
+}
+
 
 (function () {
     // Get a reference to the VS Code webview api.
@@ -77,7 +94,12 @@ function waitForElements(selectors) {
                     const columns = [
                         { formatter: "rownum", hozAlign: "right", headerHozAlign: "center", width: 1, frozen: true, resizable: false, },
                         ...message.describe.map(column => {
-                            return { title: column.column_name, field: column.column_name, headerTooltip: column.column_type }
+                            return {
+                                title: column.column_name,
+                                field: column.column_name,
+                                headerTooltip: column.column_type,
+                                ...getFormatter(column.column_type),
+                            }
                         })
                     ];
 

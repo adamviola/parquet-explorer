@@ -186,6 +186,9 @@ export class ParquetDocumentProvider implements vscode.CustomReadonlyEditorProvi
 
         const prismCssUri = webview.asWebviewUri(vscode.Uri.joinPath(
             this._context.extensionUri, 'media', 'prism.css'));
+        
+        const luxonJsUri = webview.asWebviewUri(vscode.Uri.joinPath(
+            this._context.extensionUri, 'media', 'luxon.min.js'));
 
         const tabulatorJsUri = webview.asWebviewUri(vscode.Uri.joinPath(
             this._context.extensionUri, 'media', 'tabulator.min.js'));
@@ -228,6 +231,8 @@ export class ParquetDocumentProvider implements vscode.CustomReadonlyEditorProvi
                 <script nonce="${nonce}">
                     const CHUNK_SIZE = ${vscode.workspace.getConfiguration('parquet-explorer').get("chunkSize")}
                 </script>
+
+                <script nonce="${nonce}" src="${luxonJsUri}"></script>
 
                 <script nonce="${nonce}" src="${tabulatorJsUri}"></script>
                 <link rel="stylesheet" href="${tabulatorCssUri}">
