@@ -69,12 +69,20 @@ class ParquetDocument extends Disposable implements vscode.CustomDocument {
     }
 
     private cleanResults(results: duckdb.TableData): duckdb.TableData {
-        // DuckDB can sometimes give us BigInt values, which won't JSON.stringify
-        // https://github.com/duckdb/duckdb-node/blob/f9a910d544835f55dac36485d767b1c2f6aafb87/src/statement.cpp#L122
+		const formatter = (key: string, value: any) => {
+			if (typeof value == "bigint")
+				return value.toString()
+			return value;
+		}
+
         for (const row of results) {
             for (const [key, value] of Object.entries(row)) {
-                if (typeof value == "bigint")
-                    row[key] = Number(value);
+				if (typeof value == "object" && Object.keys(value).length > 0 && !Array.isArray(value))
+					row[key] = JSON.stringify(value, formatter, 2);
+				else if (Array.isArray(value))
+					row[key] = JSON.stringify(value, formatter)
+				else
+					row[key] = formatter(key, value);
             }
         }
         return results;
