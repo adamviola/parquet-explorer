@@ -42,7 +42,7 @@ class ParquetDocument extends Disposable implements vscode.CustomDocument {
 			tableName = parse(uri.fsPath).name
 
 		this.db.exec(
-			`CREATE VIEW ${tableName} AS SELECT * FROM read_parquet('${uri.fsPath}');`
+			`CREATE VIEW ${tableName} AS SELECT * FROM read_parquet('${uri.fsPath.replace(/'/g, "''")}');`
 		);
 	}
 
