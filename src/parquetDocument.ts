@@ -42,7 +42,7 @@ class ParquetDocument extends Disposable implements vscode.CustomDocument {
 			tableName = parse(uri.fsPath).name
 
 		this.db.exec(
-			`CREATE VIEW ${tableName} AS SELECT * FROM read_parquet('${uri.fsPath.replace(/'/g, "''")}');`
+			`CREATE VIEW ${tableName} AS SELECT * FROM '${uri.fsPath.replace(/'/g, "''")}';`
 		);
 	}
 
@@ -133,15 +133,13 @@ class ParquetDocument extends Disposable implements vscode.CustomDocument {
 
 export class ParquetDocumentProvider implements vscode.CustomReadonlyEditorProvider<ParquetDocument> {
 
-	public static register(context: vscode.ExtensionContext): vscode.Disposable {
+	public static register(context: vscode.ExtensionContext, viewType: string): vscode.Disposable {
 		return vscode.window.registerCustomEditorProvider(
-			ParquetDocumentProvider.viewType,
+			viewType,
 			new ParquetDocumentProvider(context),
 			{ supportsMultipleEditorsPerDocument: false },
 		);
 	}
-
-	private static readonly viewType = 'parquetExplorer.explorer';
 
 	constructor(
 		private readonly _context: vscode.ExtensionContext

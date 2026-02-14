@@ -63,6 +63,25 @@
                     }
                 ],
                 "priority": "default"
+            },
+			{
+                "viewType": "parquetExplorer.explorer.optional",
+                "displayName": "Parquet Explorer (CSV/TSV/Excel/JSON)",
+                "selector": [
+                    {
+                        "filenamePattern": "*.csv"
+                    },
+					{
+						"filenamePattern": "*.tsv"
+					},
+                    {
+                        "filenamePattern": "*.xlsx"
+                    },
+                    {
+                        "filenamePattern": "*.json"
+                    }
+                ],
+                "priority": "option"
             }
         ]
     },
