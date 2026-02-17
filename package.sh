@@ -6,11 +6,15 @@ mkdir ./dist
 
 # Targets to build against
 targets=(
-    "win32-x64" # DuckDB appears to not have ia32 nor arm64 builds for Windows
+    "win32-x64"
+    # "win32-arm64" # Not yet supported by DuckDB.
     "linux-x64"
     "linux-arm64"
+    # "linux-armhf" # Not yet supported by DuckDB.
     "darwin-x64"
     "darwin-arm64"
+    # "alpine-x64" # Not yet supported by DuckDB.
+    # "alpine-arm64" # Not yet supported by DuckDB.
 )
 
 for p in ${targets[@]}; do

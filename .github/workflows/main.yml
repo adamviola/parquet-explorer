@@ -1,22 +1,82 @@
 on:
+  push:
+    branches:
+      - "**"
+    tags:
+      - "v*"
+  pull_request:
+    branches:
+      - "**"
   workflow_dispatch:
+
 jobs:
   package:
-    name: Package Extension
+    name: Package & Publish Extension
     runs-on: ubuntu-latest
+
     steps:
-    - name: Setup Node.js environment
-      uses: actions/setup-node@v3.7.0
-      with:
-        node-version: 20.3.1
-    - name: Checkout repo
-      uses: actions/checkout@v3.5.3
-    - name: Build extension
-      run: |
-        npm install
-        npm install --global @vscode/vsce
-        sh ./package.sh
-    - name: Upload extension
-      uses: actions/upload-artifact@v3.1.2
-      with:
-        path: ./dist/*
+      - name: Checkout repo
+        uses: actions/checkout@v3.5.3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3.7.0
+        with:
+          node-version: 20.5.1
+
+      - name: Sync version from tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          TAG=${GITHUB_REF#refs/tags/v}
+          npm version "$TAG" --no-git-tag-version
+
+      - name: Install dependencies
+        run: npm install
+
+      # Install dependencies for publishing.
+      - name: Install vsce
+        run: npm install --global @vscode/vsce
+      - name: Install ovsx
+        run: npm install --global ovsx
+
+      - name: Build & package extension
+        run: ./package.sh
+
+      - name: List build products
+        run: |
+          du -a out/
+          du -a dist/
+
+      - name: Upload build artifacts
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: vsix
+          path: dist/*.vsix
+
+      # Publish to Open VSX.
+      - name: Publish to Open VSX
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          OPEN_VSX_PUBLISH_TOKEN: ${{ secrets.OPEN_VSX_PUBLISH_TOKEN }}
+        run: |
+          ovsx publish --packagePath dist/*.vsix --pat "$OPEN_VSX_PUBLISH_TOKEN"
+
+      # Publish to VS Code Marketplace.
+      - name: Publish to VS Code Marketplace
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          VSCE_PUBLISH_PERSONAL_ACCESS_TOKEN: ${{ secrets.VSCE_PUBLISH_PERSONAL_ACCESS_TOKEN }}
+        run: |
+          vsce publish --packagePath dist/*.vsix --pat "$VSCE_PUBLISH_PERSONAL_ACCESS_TOKEN"
+
+      # Create GitHub Release.
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          prerelease: ${{ contains(github.ref, '-rc') }}
+          generate_release_notes: true
+          files: |
+            dist/*.vsix
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

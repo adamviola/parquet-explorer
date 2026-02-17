@@ -1,15 +1,15 @@
 {
-    "name": "parquet-explorer",
-    "displayName": "Parquet Explorer",
-    "description": "Explore Parquet files with SQL. Powered by DuckDB",
-    "version": "1.2.1",
-    "publisher": "AdamViola",
+    "name": "flat-file-explorer",
+    "displayName": "Flat File Explorer",
+    "description": "Explore Parquet and CSV files with DuckDB SQL",
+    "version": "0.0.0",
+    "publisher": "DeflateAwning",
     "icon": "icon.png",
     "private": true,
     "license": "MIT",
     "repository": {
         "type": "git",
-        "url": "https://github.com/adamviola/parquet-explorer"
+        "url": "https://github.com/DeflateAwning/flat-file-explorer"
     },
     "engines": {
         "vscode": "^1.74.0"
@@ -21,36 +21,41 @@
     "main": "./out/extension.js",
     "contributes": {
         "configuration": {
-            "title": "Parquet Explorer",
+            "title": "Flat File Explorer",
             "properties": {
-                "parquet-explorer.defaultQuery": {
+                "flat-file-explorer.defaultQuery": {
                     "type": "string",
                     "editPresentation": "multilineText",
                     "default": "SELECT * FROM ${tableName}",
                     "markdownDescription": "Use `${tableName}` to include the table name of the Parquet file."
                 },
-                "parquet-explorer.tableName": {
+                "flat-file-explorer.tableName": {
                     "type": "string",
                     "default": "data",
-                    "markdownDescription": "SQL table name associated with the Parquet file. May be overridden by `#parquet-explorer.useFileNameAsTableName#`."
+                    "markdownDescription": "SQL table name associated with the Parquet file. May be overridden by `#flat-file-explorer.useFileNameAsTableName#`."
                 },
-                "parquet-explorer.useFileNameAsTableName": {
+                "flat-file-explorer.useFileNameAsTableName": {
                     "type": "boolean",
                     "default": false,
-                    "markdownDescription": "Whether the file name is used as the SQL table name of the Parquet file. Overrides `#parquet-explorer.tableName#`."
+                    "markdownDescription": "Whether the file name is used as the SQL table name of the Parquet file. Overrides `#flat-file-explorer.tableName#`."
                 },
-                "parquet-explorer.chunkSize": {
+                "flat-file-explorer.chunkSize": {
                     "type": "integer",
                     "default": 100,
                     "minimum": 30,
                     "markdownDescription": "Number of query results to fetch per request."
+                },
+                "flat-file-explorer.autoQuery": {
+                    "type": "boolean",
+                    "default": false,
+                    "markdownDescription": "Automatically dispatch queries as the input changes. If false, queries are only dispatched on Ctrl + Enter."
                 }
             }
         },
         "customEditors": [
             {
-                "viewType": "parquetExplorer.explorer",
-                "displayName": "Parquet Explorer",
+                "viewType": "flatFileExplorer.explorer",
+                "displayName": "Flat File Explorer",
                 "selector": [
                     {
                         "filenamePattern": "*.parquet"
@@ -60,6 +65,9 @@
                     },
                     {
                         "filenamePattern": "*.pq"
+                    },
+                    {
+                        "filenamePattern": "*.csv"
                     }
                 ],
                 "priority": "default"
@@ -67,10 +75,12 @@
         ]
     },
     "scripts": {
-        "vscode:prepublish": "rm -rf ./out; mkdir ./out ./out/binding/; cp ./node_modules/duckdb/lib/binding/duckdb.node ./out/binding/; esbuild ./src/extension.ts --bundle --outfile=out/extension.js --external:vscode --external:nock --external:aws-sdk --external:mock-aws-s3 --format=cjs --platform=node --minify",
-        "compile": "tsc -p ./",
-        "watch": "tsc -w -p ./",
-        "lint": "eslint \"src/**/*.ts\""
+        "build:webview": "node esbuild.webview.js",
+        "build:extension": "tsc -p .",
+        "compile": "npm run build:extension && npm run build:webview",
+        "watch:extension": "tsc -w -p ./",
+        "lint": "eslint \"src/**/*.ts\"",
+        "vscode:prepublish": "rm -rf ./out && mkdir -p ./out/binding/ && cp ./node_modules/duckdb/lib/binding/duckdb.node ./out/binding/ && npm run compile && esbuild ./src/extension.ts --bundle --outfile=out/extension.js --external:vscode --external:nock --external:aws-sdk --external:mock-aws-s3 --format=cjs --platform=node --minify"
     },
     "devDependencies": {
         "@types/node": "^16.18.34",
@@ -81,7 +91,7 @@
         "eslint": "^8.26.0"
     },
     "dependencies": {
-        "duckdb": "^0.10.2"
+        "duckdb": "~1.2.0"
     },
     "binary": {
         "module_name": "duckdb",

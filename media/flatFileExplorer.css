@@ -15,6 +15,46 @@ body {
     margin-right: 12.5%;
 }
 
+.query-toolbar {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.query-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 6px;
+}
+
+.action-button {
+    font-size: 12px;
+    padding: 4px 10px;
+    cursor: pointer;
+
+    background: var(--vscode-button-secondaryBackground);
+    color: var(--vscode-button-secondaryForeground);
+    border: 1px solid var(--vscode-button-border);
+    border-radius: 4px;
+
+    opacity: 0.9;
+}
+
+.action-button:hover {
+    opacity: 1;
+    background: var(--vscode-button-secondaryHoverBackground);
+}
+
+.action-button.primary {
+    background: var(--vscode-button-background);
+    color: var(--vscode-button-foreground);
+    border-color: var(--vscode-button-border);
+}
+
+.action-button.primary:hover {
+    background: var(--vscode-button-hoverBackground);
+}
+
 #resultsContainer {
     flex-grow: 1;
     margin-left: -20px;
@@ -60,6 +100,10 @@ code-input pre {
 .tabulator-header-contents::after {
     content: "";
     flex-grow: 1;
+}
+
+.tabulator-header .tabulator-col {
+    user-select: text;
 }
 
 .tabulator-col {
@@ -126,4 +170,27 @@ code-input pre {
     color: var(--vscode-editor-foreground) !important;
     font-weight: bold;
     border-radius: 5px;
+}
+
+.query-hint {
+    position: absolute;
+    right: 8px;
+    bottom: 2px; /* relative to padded content */
+    padding: 2px 6px;
+    font-size: 11px;
+    opacity: 0;
+    pointer-events: none;
+    border-radius: 4px;
+    background: var(--vscode-editorHoverWidget-background);
+    color: var(--vscode-editorHoverWidget-foreground);
+    border: 1px solid var(--vscode-editorHoverWidget-border);
+    transition: opacity 120ms ease-in-out;
+}
+
+.code-input-wrapper:hover .query-hint {
+    opacity: 0.85;
+}
+
+.query-hint.visible {
+    opacity: 0.85;
 }

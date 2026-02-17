@@ -1,20 +1,16 @@
 import * as vscode from 'vscode';
 import { Disposable } from './dispose';
 import { getNonce } from './util';
-import { parse } from "path"
-
+import { BackToFrontMessage, FrontToBackMessage, DescribeColumn } from './shared/messages';
+import { parse, extname } from "path"
 import * as duckdb from 'duckdb';
 
-interface IMessage {
-    type: 'query' | 'more';
-    success: boolean;
-    message?: string;
-    results?: duckdb.TableData;
-    describe?: duckdb.TableData;
-}
+const CSV_EXTENSIONS = [".csv"];
+const PARQUET_EXTENSIONS = [".pq", ".parq", ".parquet"];
+
 
 /**
- * Define the document (the data model) used for paw draw files.
+ * Define the document (the data model) used for table files.
  */
 class ParquetDocument extends Disposable implements vscode.CustomDocument {
 
@@ -29,24 +25,41 @@ class ParquetDocument extends Disposable implements vscode.CustomDocument {
 
     private readonly _uri: vscode.Uri;
     private readonly _db: duckdb.Database;
+    private readonly _createViewSql: string;
 
     private constructor(uri: vscode.Uri) {
         super();
         this._uri = uri;
         this._db = new duckdb.Database(':memory:');
 
-        const config = vscode.workspace.getConfiguration('parquet-explorer')
+        const config = vscode.workspace.getConfiguration('flat-file-explorer');
         let tableName: string = config.get("tableName")!;
         if (config.get("useFileNameAsTableName"))
-            tableName = parse(uri.fsPath).name
+            tableName = parse(uri.fsPath).name;
 
-        this.db.exec(
-            `CREATE VIEW ${tableName} AS SELECT * FROM read_parquet('${uri.fsPath}');`
-        );
+        const fileExtension = extname(uri.fsPath).toLowerCase();
+
+        if (CSV_EXTENSIONS.includes(fileExtension)) {
+            this._createViewSql = `CREATE OR REPLACE VIEW ${tableName} AS SELECT * FROM read_csv('${uri.fsPath}');`;
+        } else if (PARQUET_EXTENSIONS.includes(fileExtension)) {
+            this._createViewSql = `CREATE OR REPLACE VIEW ${tableName} AS SELECT * FROM read_parquet('${uri.fsPath}');`;
+        } else {
+            // If this error occurs, check that the trigger types in `package.json` are in sync
+            // with the extension definition arrays at the top of this file.
+            throw new Error("Unsupported file type. Should not have opened with Flat File Explorer.");
+        }
+
+        this.db.exec(this._createViewSql);
     }
 
     public get uri() { return this._uri; }
     public get db() { return this._db; }
+
+    /** The SQL statement used to create the view for this document.
+     * 
+     * Single line, ending with a semicolon.
+    */
+    public get createViewSql() { return this._createViewSql; }
 
     private readonly _onDidDispose = this._register(new vscode.EventEmitter<void>());
     /**
@@ -64,6 +77,13 @@ class ParquetDocument extends Disposable implements vscode.CustomDocument {
         super.dispose();
     }
 
+    /**
+     * 
+     * @param sql Select statement on `data` table.
+     * @param limit Pagination.
+     * @param offset Pagination.
+     * @returns A `SELECT * FROM (SELECT * FROM data)` query with LIMIT and OFFSET applied.
+     */
     private formatSql(sql: string, limit: number, offset: number): string {
         return `SELECT * FROM (\n${sql.replace(';', '')}\n) LIMIT ${limit} OFFSET ${offset}`;
     }
@@ -80,7 +100,7 @@ class ParquetDocument extends Disposable implements vscode.CustomDocument {
         return results;
     }
 
-    runQuery(sql: string, limit: number, callback: (msg: IMessage) => void): void {
+    runQuery(sql: string, limit: number, callback: (msg: BackToFrontMessage) => void): void {
         // Fetch resulting column names and types
         this.db.all(
             `DESCRIBE (${sql.replace(';', '')});`,
@@ -98,14 +118,19 @@ class ParquetDocument extends Disposable implements vscode.CustomDocument {
                             callback({ type: 'query', success: false, message: err.message });
                             return;
                         }
-                        callback({ type: 'query', success: true, results: this.cleanResults(res), describe: descRes });
+                        callback({
+                            type: 'query',
+                            success: true,
+                            results: this.cleanResults(res),
+                            describe: translateDescribe(descRes)
+                        });
                     }
                 );
             }
         );
     }
 
-    fetchMore(sql: string, limit: number, offset: number, callback: (msg: IMessage) => void): void {
+    fetchMore(sql: string, limit: number, offset: number, callback: (msg: BackToFrontMessage) => void): void {
         this.db.all(
             this.formatSql(sql, limit, offset),
             (err, res) => {
@@ -117,8 +142,18 @@ class ParquetDocument extends Disposable implements vscode.CustomDocument {
             }
         );
     }
+
+    reloadBaseView(): void {
+        this.db.exec(this._createViewSql);
+    }
 }
 
+function translateDescribe(descRes: duckdb.TableData): DescribeColumn[] {
+    return descRes.map(row => ({
+        column_name: String(row.column_name),
+        column_type: String(row.column_type),
+    }));
+}
 
 export class ParquetDocumentProvider implements vscode.CustomReadonlyEditorProvider<ParquetDocument> {
 
@@ -130,7 +165,7 @@ export class ParquetDocumentProvider implements vscode.CustomReadonlyEditorProvi
         );
     }
 
-    private static readonly viewType = 'parquetExplorer.explorer';
+    private static readonly viewType = 'flatFileExplorer.explorer';
 
     constructor(
         private readonly _context: vscode.ExtensionContext
@@ -150,14 +185,38 @@ export class ParquetDocumentProvider implements vscode.CustomReadonlyEditorProvi
         webviewPanel: vscode.WebviewPanel,
         _token: vscode.CancellationToken
     ): Promise<void> {
-        // Setup initial content for the webview
-        webviewPanel.webview.options = {
-            enableScripts: true,
-        };
+        // Setup initial content for the webview.
+        webviewPanel.webview.options = { enableScripts: true };
 
         webviewPanel.webview.html = this.getHtmlForWebview(webviewPanel.webview, document.uri);
 
         webviewPanel.webview.onDidReceiveMessage(e => this.onMessage(document, webviewPanel, e));
+
+        // Monitor the open file for changes so we can re-query if it changes.
+        const watcher = vscode.workspace.createFileSystemWatcher(
+            new vscode.RelativePattern(
+                vscode.Uri.file(document.uri.fsPath).with({ path: document.uri.fsPath }).fsPath,
+                '*'
+            )
+        );
+
+        const reload = () => {
+            document.reloadBaseView();
+            this.postMessage(webviewPanel, { type: 'reloadBaseView' });
+        };
+
+        watcher.onDidChange(reload);
+        watcher.onDidCreate(reload);
+        watcher.onDidDelete(reload);
+
+        webviewPanel.onDidDispose(() => watcher.dispose());
+
+        // Send the autoQuery configuration to the webview.
+        const config = vscode.workspace.getConfiguration('flat-file-explorer')
+        this.postMessage(webviewPanel, {
+            type: 'config',
+            autoQuery: config.get('autoQuery')!
+        });
     }
 
 
@@ -165,12 +224,13 @@ export class ParquetDocumentProvider implements vscode.CustomReadonlyEditorProvi
      * Get the static HTML used for in our editor's webviews.
      */
     private getHtmlForWebview(webview: vscode.Webview, uri: vscode.Uri): string {
-        // Local path to script and css for the webview
+        // Local path to script and css for the webview.
         const jsUri = webview.asWebviewUri(vscode.Uri.joinPath(
-            this._context.extensionUri, 'media', 'parquetExplorer.js'));
+            // Compiled from `src/webview/webview.ts`.
+            this._context.extensionUri, 'out', 'webview.js'));
 
         const cssUri = webview.asWebviewUri(vscode.Uri.joinPath(
-            this._context.extensionUri, 'media', 'parquetExplorer.css'));
+            this._context.extensionUri, 'media', 'flatFileExplorer.css'));
 
         const codeInputJsUri = webview.asWebviewUri(vscode.Uri.joinPath(
             this._context.extensionUri, 'media', 'code-input.min.js'));
@@ -187,6 +247,9 @@ export class ParquetDocumentProvider implements vscode.CustomReadonlyEditorProvi
         const prismCssUri = webview.asWebviewUri(vscode.Uri.joinPath(
             this._context.extensionUri, 'media', 'prism.css'));
 
+        const luxonJsUri = webview.asWebviewUri(vscode.Uri.joinPath(
+            this._context.extensionUri, 'media', 'luxon.min.js'));
+
         const tabulatorJsUri = webview.asWebviewUri(vscode.Uri.joinPath(
             this._context.extensionUri, 'media', 'tabulator.min.js'));
 
@@ -200,7 +263,7 @@ export class ParquetDocumentProvider implements vscode.CustomReadonlyEditorProvi
         // Use a nonce to whitelist which scripts can be run
         const nonce = getNonce();
 
-        const config = vscode.workspace.getConfiguration('parquet-explorer')
+        const config = vscode.workspace.getConfiguration('flat-file-explorer')
         let tableName: string = config.get("tableName")!;
         if (config.get("useFileNameAsTableName"))
             tableName = parse(uri.fsPath).name
@@ -226,8 +289,10 @@ export class ParquetDocumentProvider implements vscode.CustomReadonlyEditorProvi
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
                 <script nonce="${nonce}">
-                    const CHUNK_SIZE = ${vscode.workspace.getConfiguration('parquet-explorer').get("chunkSize")}
+                    const CHUNK_SIZE = ${vscode.workspace.getConfiguration('flat-file-explorer').get("chunkSize")}
                 </script>
+
+                <script nonce="${nonce}" src="${luxonJsUri}"></script>
 
                 <script nonce="${nonce}" src="${tabulatorJsUri}"></script>
                 <link rel="stylesheet" href="${tabulatorCssUri}">
@@ -243,13 +308,24 @@ export class ParquetDocumentProvider implements vscode.CustomReadonlyEditorProvi
                 <script nonce="${nonce}" src="${jsUri}"></script>
                 <link rel="stylesheet" href="${cssUri}">
 
-                <title>Parquet Explorer</title>
+                <title>Flat File Explorer</title>
             </head>
             <body>
                 <div id="controls">
-                    <code-input nonce="${nonce}" lang="SQL" value="${defaultQuery}"></code-input>
+                    <div class="query-toolbar">
+                        <code-input nonce="${nonce}" lang="SQL" value="${defaultQuery}"></code-input>
+
+                        <div class="query-actions">
+                            <button id="executeQueryButton" class="action-button primary">
+                                Execute
+                            </button>
+                            <button id="copyFullQueryButton" class="action-button">
+                                Copy Full Query
+                            </button>
+                        </div>
+                    </div>
                 </div>
-                </div>
+
                 <div id="resultsContainer">
                     <div id="results"></div>
                     <div id="feedback">
@@ -265,19 +341,37 @@ export class ParquetDocumentProvider implements vscode.CustomReadonlyEditorProvi
     }
 
 
-    private postMessage(panel: vscode.WebviewPanel, message: IMessage): void {
+    private postMessage(panel: vscode.WebviewPanel, message: BackToFrontMessage): void {
         panel.webview.postMessage(message);
     }
 
-    private onMessage(document: ParquetDocument, panel: vscode.WebviewPanel, message: any) {
+    /** Handle incoming message. */
+    private onMessage(document: ParquetDocument, panel: vscode.WebviewPanel, message: FrontToBackMessage) {
         switch (message.type) {
             case 'query':
-                document.runQuery(message.sql, message.limit, (msg: IMessage) => this.postMessage(panel, msg));
+                document.runQuery(
+                    message.sql, message.limit,
+                    (msg: BackToFrontMessage) => this.postMessage(panel, msg)
+                );
                 return;
             case 'more':
-                document.fetchMore(message.sql, message.limit, message.offset, (msg: IMessage) => this.postMessage(panel, msg));
+                document.fetchMore(
+                    message.sql, message.limit, message.offset,
+                    (msg: BackToFrontMessage) => this.postMessage(panel, msg)
+                );
                 return;
+            case 'copy':
+                let fullQuery = `${document.createViewSql}\n\n${message.sql.trim()}`;
 
+                // Terminate with semicolon if not yet.
+                if (!fullQuery.endsWith(";")) {
+                    fullQuery += ";";
+                }
+                fullQuery += '\n';
+
+                vscode.env.clipboard.writeText(fullQuery);
+                vscode.window.showInformationMessage("Full query copied to clipboard");
+                return;
         }
     }
 }
