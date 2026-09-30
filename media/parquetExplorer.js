@@ -111,6 +111,8 @@ function getFormatter(columnType) {
                         table = new Tabulator("#results", {
                             height: "calc(100% + 10vh)",
                             data: message.results,
+                            // SQL result column names are literal keys, including any dots.
+                            nestedFieldSeparator: false,
                             layout: "fitData",
                             placeholder: "No Results",
                             resizableColumnGuide: true,
